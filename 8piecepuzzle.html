@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>8 Puzzle Ultimate</title>
+
+<style>
+body{
+display:flex;
+flex-direction:column;
+align-items:center;
+justify-content:center;
+height:100vh;
+background:#f0f0f0;
+font-family:Arial;
+transition:0.3s;
+}
+
+body.dark{
+background:#1e1e1e;
+color:white;
+}
+
+.info-bar{
+width:320px;
+display:flex;
+justify-content:space-between;
+margin-bottom:10px;
+font-weight:bold;
+}
+
+.best-bar{
+width:320px;
+display:flex;
+justify-content:space-between;
+margin-bottom:10px;
+}
+
+.grid{
+position:relative;
+width:310px;
+height:310px;
+background:#ddd;
+}
+
+.tile{
+position:absolute;
+width:100px;
+height:100px;
+background:#4caf50;
+color:white;
+display:flex;
+justify-content:center;
+align-items:center;
+font-size:24px;
+border-radius:8px;
+transition:all .25s;
+touch-action:none;
+}
+
+.tile.correct{
+background:#2196f3;
+}
+
+.tile.win{
+background:gold;
+color:black;
+transform:scale(1.1);
+}
+
+.empty{
+background:transparent;
+}
+
+.controls{
+margin-top:10px;
+display:flex;
+gap:6px;
+flex-wrap:wrap;
+justify-content:center;
+}
+
+button{
+padding:6px 12px;
+cursor:pointer;
+}
+</style>
+</head>
+
+<body>
+
+<div class="info-bar">
+<div>Moves: <span id="moves">0</span></div>
+<div>Time: <span id="time">0</span>s</div>
+</div>
+
+<div class="best-bar">
+<div>Best Time: <span id="bestTime">--</span></div>
+<div>Best Moves: <span id="bestMoves">--</span></div>
+</div>
+
+<div>Correct Tiles: <span id="correct">0</span>/8</div>
+
+<div class="grid" id="grid"></div>
+
+<div class="controls">
+<button id="shuffleBtn">Shuffle</button>
+<button id="restartBtn">Restart</button>
+<button id="hintBtn">Hint</button>
+<button id="imageBtn">Image Mode</button>
+<button id="darkBtn">Dark Mode</button>
+</div>
+
+<script>
+
+const grid=document.getElementById("grid")
+const movesDisplay=document.getElementById("moves")
+const timeDisplay=document.getElementById("time")
+const bestTimeDisplay=document.getElementById("bestTime")
+const bestMovesDisplay=document.getElementById("bestMoves")
+const correctDisplay=document.getElementById("correct")
+
+let positions=[...Array(9).keys()]
+let startPositions=[...positions]
+
+let moves=0
+let time=0
+let timer=null
+let started=false
+let imageMode=false
+
+function setPosition(tile,pos){
+const r=Math.floor(pos/3)
+const c=pos%3
+tile.style.top=r*105+"px"
+tile.style.left=c*105+"px"
+}
+
+function createTiles(){
+    grid.innerHTML = "";
+
+    positions.forEach((pos, i) => {
+        const tile = document.createElement("div");
+        tile.classList.add("tile");
+        tile.dataset.index = i;   // tile identity
+        tile.dataset.pos = pos;   // shuffled position
+
+        if(i === 8){
+            tile.classList.add("empty");
+        } else {
+            if(imageMode){
+                tile.style.backgroundImage = "url(https://picsum.photos/300)";
+                tile.style.backgroundSize = "300px";
+                tile.style.backgroundPosition = `-${(i%3)*100}px -${Math.floor(i/3)*100}px`;
+            } else {
+                tile.textContent = i+1;
+            }
+        }
+
+        setPosition(tile, pos);   // use shuffled pos here
+        tile.addEventListener("click", () => moveTile(tile));
+        grid.appendChild(tile);
+    });
+
+    updateCorrect();
+}
+
+
+function getEmpty(){
+return [...document.querySelectorAll(".tile")]
+.find(t=>t.classList.contains("empty"))
+}
+
+function adjacent(p1,p2){
+let r1=Math.floor(p1/3)
+let c1=p1%3
+let r2=Math.floor(p2/3)
+let c2=p2%3
+
+return (r1===r2 && Math.abs(c1-c2)===1) ||
+       (c1===c2 && Math.abs(r1-r2)===1)
+}
+
+function moveTile(tile){
+const empty=getEmpty()
+
+if(!adjacent(+tile.dataset.pos,+empty.dataset.pos)) return
+
+if(!started){
+startTimer()
+started=true
+}
+
+let temp=tile.dataset.pos
+tile.dataset.pos=empty.dataset.pos
+empty.dataset.pos=temp
+
+setPosition(tile,tile.dataset.pos)
+setPosition(empty,empty.dataset.pos)
+
+moves++
+movesDisplay.textContent=moves
+
+updateCorrect()
+checkWin()
+}
+
+function startTimer(){
+timer=setInterval(()=>{
+time++
+timeDisplay.textContent=time
+},1000)
+}
+
+function stopTimer(){
+clearInterval(timer)
+}
+
+function updateCorrect(){
+const tiles=[...document.querySelectorAll(".tile")]
+let correct=0
+
+tiles.forEach((t,i)=>{
+if(!t.classList.contains("empty") && +t.dataset.pos===i){
+correct++
+t.classList.add("correct")
+}else{
+t.classList.remove("correct")
+}
+})
+
+correctDisplay.textContent=correct
+}
+
+function checkWin(){
+const tiles=[...document.querySelectorAll(".tile")]
+
+const win=tiles.every((t,i)=>+t.dataset.pos===i)
+
+if(win){
+
+stopTimer()
+
+updateBestScores()
+
+tiles.forEach(t=>t.classList.add("win"))
+
+fetch("http://localhost:3000/score",{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+moves:moves,
+time:time
+})
+});
+
+setTimeout(()=>{
+alert("🎉 Puzzle Solved!")
+shuffle()
+},300)
+
+}
+}
+
+function isSolvable(arr){
+let inv=0
+for(let i=0;i<8;i++)
+for(let j=i+1;j<9;j++)
+if(arr[i] && arr[j] && arr[i]>arr[j]) inv++
+return inv%2===0
+}
+
+function shuffle(){
+    stopTimer();
+    started = false;
+    moves = 0;
+    time = 0;
+    movesDisplay.textContent = 0;
+    timeDisplay.textContent = 0;
+
+    let arr;
+    do {
+        arr = [...Array(9).keys()].sort(() => Math.random() - 0.5);
+    } while(!isSolvable(arr));
+
+    positions = [...arr];        // shuffled positions
+    startPositions = [...arr];   // save for restart
+    createTiles();               // now uses shuffled positions correctly
+}
+
+
+function updateBestScores(){
+
+let bestTime = Number(localStorage.getItem("bestTime"))
+let bestMoves = Number(localStorage.getItem("bestMoves"))
+
+if(!bestTime || time < bestTime){
+localStorage.setItem("bestTime",time)
+bestTime = time
+}
+
+if(!bestMoves || moves < bestMoves){
+localStorage.setItem("bestMoves",moves)
+bestMoves = moves
+}
+
+bestTimeDisplay.textContent = bestTime
+bestMovesDisplay.textContent = bestMoves
+}
+
+document.getElementById("restartBtn").onclick=()=>{
+stopTimer()
+positions=[...startPositions]
+moves=0
+time=0
+started=false
+movesDisplay.textContent=0
+timeDisplay.textContent=0
+createTiles()
+}
+
+document.getElementById("darkBtn").onclick=()=>{
+document.body.classList.toggle("dark")
+}
+
+document.getElementById("imageBtn").onclick=()=>{
+imageMode=!imageMode
+createTiles()
+}
+
+document.getElementById("hintBtn").onclick=()=>{
+const tiles=[...document.querySelectorAll(".tile")]
+const empty=getEmpty()
+
+const movable=tiles.filter(t=>
+!t.classList.contains("empty") &&
+adjacent(+t.dataset.pos,+empty.dataset.pos)
+)
+
+movable[0].style.boxShadow="0 0 20px yellow"
+
+setTimeout(()=>{
+movable[0].style.boxShadow="none"
+},700)
+}
+
+document.getElementById("shuffleBtn").onclick = shuffle
+
+shuffle()
+
+document.getElementById("shuffleBtn").onclick = shuffle
+
+shuffle()
+
+bestTimeDisplay.textContent = localStorage.getItem("bestTime") || "--"
+bestMovesDisplay.textContent = localStorage.getItem("bestMoves") || "--"
+
+</script>
+
+</body>
+</html>
