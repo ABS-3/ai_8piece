@@ -1,41 +1,39 @@
-const express = require("express");
-const cors = require("cors");
 const { MongoClient } = require("mongodb");
-require("dotenv").config();
 
-const app = express();
-app.use(cors());
-app.use(express.json());
+let client;
+let clientPromise;
 
 const uri = process.env.MONGO_URI;
-const client = new MongoClient(uri);
 
-let scoresCollection;
-
-// Connect to MongoDB once
-async function connectDB() {
-  try {
-    await client.connect();
-    const db = client.db("puzzleDB");
-    scoresCollection = db.collection("scores");
-    console.log("Connected to MongoDB");
-  } catch (err) {
-    console.error("Failed to connect to MongoDB:", err.message);
-  }
+if (!clientPromise) {
+  client = new MongoClient(uri);
+  clientPromise = client.connect();
 }
-connectDB();
 
-// Define the /score route
-app.post("/score", async (req, res) => {
-  try {
-    const score = req.body;
-    await scoresCollection.insertOne(score);
-    res.json({ status: "saved" });
-  } catch (err) {
-    console.error("Error inserting score:", err.message);
-    res.status(500).json({ status: "error", message: err.message });
+module.exports = async function handler(req, res) {
+
+  if (req.method !== "POST") {
+    return res.status(405).json({ message: "Method not allowed" });
   }
-});
 
-// Export the app for Vercel
-module.exports = app;
+  try {
+    const { moves, time } = req.body;
+
+    const client = await clientPromise;
+    const db = client.db("puzzleDB");
+    const collection = db.collection("scores");
+
+    await collection.insertOne({
+      moves,
+      time,
+      date: new Date()
+    });
+
+    res.status(200).json({ status: "saved" });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ status: "error", message: error.message });
+  }
+
+};
