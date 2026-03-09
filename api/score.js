@@ -1,3 +1,4 @@
+console.log("API FUNCTION LOADED");
 const { MongoClient } = require("mongodb");
 
 let client;
