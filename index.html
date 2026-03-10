@@ -316,55 +316,42 @@ shuffle();
 }
 }
 
-function isSolvable(arr){
-
-let inv = 0;
-
-for(let i = 0; i < 8; i++){
-  for(let j = i + 1; j < 9; j++){
-
-    if(arr[i] !== 0 && arr[j] !== 0 && arr[i] > arr[j]){
-      inv++;
-    }
-
+  function generateSolvable() {
+      let arr = [0,1,2,3,4,5,6,7,8];
+      for(let i=0;i<100;i++){
+        const empty = arr.indexOf(0);
+        const neighbors = [];
+        const r = Math.floor(empty/3);
+        const c = empty%3;
+        if(r>0) neighbors.push(empty-3);
+        if(r<2) neighbors.push(empty+3);
+        if(c>0) neighbors.push(empty-1);
+        if(c<2) neighbors.push(empty+1);
+        const swap = neighbors[Math.floor(Math.random()*neighbors.length)];
+        [arr[empty],arr[swap]] = [arr[swap],arr[empty]];
+      }
+      return arr;
   }
-}
 
-return inv % 2 === 0;
 
-}
 
-function shuffle(){
+function shuffle() {
+    stopTimer();
+    started = false;
+    moves = 0;
+    time = 0;
 
-stopTimer();
-started = false;
-moves = 0;
-time = 0;
+    movesDisplay.textContent = 0;
+    timeDisplay.textContent = 0;
 
-movesDisplay.textContent = 0;
-timeDisplay.textContent = 0;
+    // Generate a solvable puzzle directly
+    const arr = generateSolvable();
 
-let arr;
+    positions = [...arr];       // shuffled positions
+    startPositions = [...arr];  // save for restart
 
-do{
-    arr = shuffleArray([...Array(9).keys()]);
-}
-while(!isSolvable(arr));
-
-positions = [...arr];
-startPositions = [...arr];
-
-createTiles();
-
-loadLeaderboard();
-
-}
-function shuffleArray(arr){
-for(let i = arr.length - 1; i > 0; i--){
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-}
-return arr;
+    createTiles();
+    loadLeaderboard();
 }
 
 function loadLeaderboard(){
