@@ -316,23 +316,33 @@ shuffle();
 }
 }
 
-  function generateSolvable() {
-      let arr = [0,1,2,3,4,5,6,7,8];
-      for(let i=0;i<100;i++){
-        const empty = arr.indexOf(0);
-        const neighbors = [];
-        const r = Math.floor(empty/3);
-        const c = empty%3;
-        if(r>0) neighbors.push(empty-3);
-        if(r<2) neighbors.push(empty+3);
-        if(c>0) neighbors.push(empty-1);
-        if(c<2) neighbors.push(empty+1);
-        const swap = neighbors[Math.floor(Math.random()*neighbors.length)];
-        [arr[empty],arr[swap]] = [arr[swap],arr[empty]];
-      }
-      return arr;
-  }
+ // Generates a fully solvable and randomized 8-puzzle
+function generateSolvable() {
+    // Start from solved state
+    let arr = [1,2,3,4,5,6,7,8,0]; // 0 is the blank tile
 
+    // Number of random legal moves to shuffle the board
+    const movesCount = 200;
+
+    for(let i = 0; i < movesCount; i++){
+        const empty = arr.indexOf(0); // find the blank
+        const neighbors = [];
+        const r = Math.floor(empty / 3); // row
+        const c = empty % 3;             // column
+
+        // Determine tiles that can slide into blank
+        if(r > 0) neighbors.push(empty - 3); // tile above
+        if(r < 2) neighbors.push(empty + 3); // tile below
+        if(c > 0) neighbors.push(empty - 1); // tile left
+        if(c < 2) neighbors.push(empty + 1); // tile right
+
+        // Randomly pick one neighbor to swap with blank
+        const swap = neighbors[Math.floor(Math.random() * neighbors.length)];
+        [arr[empty], arr[swap]] = [arr[swap], arr[empty]];
+    }
+
+    return arr;
+}
 
 
 function shuffle() {
@@ -344,11 +354,11 @@ function shuffle() {
     movesDisplay.textContent = 0;
     timeDisplay.textContent = 0;
 
-    // Generate a solvable puzzle directly
+    // Generate a solvable board
     const arr = generateSolvable();
 
-    positions = [...arr];       // shuffled positions
-    startPositions = [...arr];  // save for restart
+    positions = [...arr];
+    startPositions = [...arr];
 
     createTiles();
     loadLeaderboard();
